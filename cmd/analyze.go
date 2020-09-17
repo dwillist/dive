@@ -62,8 +62,14 @@ func doAnalyzeCmd(cmd *cobra.Command, args []string) {
 		logrus.Error("unable to get 'ignore-errors' option:", err)
 	}
 
+	cnb, err := cmd.PersistentFlags().GetBool("cnb")
+	if err != nil {
+		logrus.Error("unable to get 'cnb' option:", err)
+	}
+
 	runtime.Run(runtime.Options{
 		Ci:           isCi,
+		CNB:          cnb,
 		Source:       sourceType,
 		Image:        imageStr,
 		ExportFile:   exportFile,

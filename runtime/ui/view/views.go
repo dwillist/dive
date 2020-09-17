@@ -1,17 +1,27 @@
 package view
 
 import (
+	"fmt"
+	"github.com/buildpacks/pack"
 	"github.com/jroimartin/gocui"
 	"github.com/wagoodman/dive/dive/filetree"
 	"github.com/wagoodman/dive/dive/image"
 )
+
+type ImageDetails interface {
+	OnLayoutChange() error
+	Name() string
+	Setup(*gocui.View,*gocui.View) error
+	SetCurrentLayer(layer *image.Layer)
+	Renderer
+}
 
 type Views struct {
 	Tree    *FileTree
 	Layer   *Layer
 	Status  *Status
 	Filter  *Filter
-	Details *Details
+	Details ImageDetails
 	Debug   *Debug
 }
 
@@ -34,7 +44,22 @@ func NewViews(g *gocui.Gui, analysis *image.AnalysisResult, cache filetree.Compa
 
 	Filter := newFilterView(g)
 
-	Details := newDetailsView(g, analysis.Efficiency, analysis.Inefficiencies, analysis.SizeBytes)
+	// TODO add switches here so that this is in an if condition
+	//Details := newDetailsView(g, analysis.Efficiency, analysis.Inefficiencies, analysis.SizeBytes)
+
+	// this call should be factored out and only used once....
+	client, err := pack.NewClient()
+	if err != nil {
+		return nil, fmt.Errorf("unable to create pack client: %s", err)
+	}
+
+	imgInfo, err := client.InspectImage("java-test", true)
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve %s image info: %s", "my-test", err)
+	}
+
+
+	Details := newCNBDetailsView(g, imgInfo, analysis.SizeBytes)
 
 	Debug := newDebugView(g)
 

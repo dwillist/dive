@@ -34,6 +34,8 @@ func run(enableUi bool, options Options, imageResolver image.Resolver, events ev
 	} else {
 		events.message(utils.TitleFormat("Image Source: ") + options.Source.String() + "://" + options.Image)
 		events.message(utils.TitleFormat("Fetching image...") + " (this can take a while for large images)")
+
+		// here is where we want to start considering making changes for CNBs
 		img, err = imageResolver.Fetch(options.Image)
 		if err != nil {
 			events.exitWithErrorMessage("cannot fetch image", err)
@@ -46,6 +48,19 @@ func run(enableUi bool, options Options, imageResolver image.Resolver, events ev
 	if err != nil {
 		events.exitWithErrorMessage("cannot analyze image", err)
 		return
+	}
+
+	if options.CNB {
+		events.message("before analysis")
+		events.message(fmt.Sprintf("first layer size: %d", analysis.RefTrees[0].Size))
+		events.message("doing cnb analysis")
+		analysis, err = AnalyzeCNB(analysis, options.Image)
+		if err != nil {
+			events.exitWithErrorMessage("unable to update analysis with cnb metadata", err)
+			return
+		}
+		events.message(" after doing cnb analysis")
+		events.message(fmt.Sprintf("first layer size: %d", analysis.RefTrees[0].Size))
 	}
 
 	if doExport {
@@ -107,6 +122,7 @@ func run(enableUi bool, options Options, imageResolver image.Resolver, events ev
 			// enough sleep will prevent this behavior (todo: remove this hack)
 			time.Sleep(100 * time.Millisecond)
 
+			//
 			err = ui.Run(analysis, treeStack)
 			if err != nil {
 				events.exitWithError(err)
@@ -119,6 +135,7 @@ func run(enableUi bool, options Options, imageResolver image.Resolver, events ev
 func Run(options Options) {
 	var exitCode int
 	var events = make(eventChannel)
+
 
 	imageResolver, err := dive.GetImageResolver(options.Source)
 	if err != nil {

@@ -88,6 +88,7 @@ func NewImageArchive(tarFile io.ReadCloser) (*ImageArchive, error) {
 	return img, nil
 }
 
+
 func processLayerTar(name string, reader *tar.Reader) (*filetree.FileTree, error) {
 	tree := filetree.NewFileTree()
 	tree.Name = name

@@ -9,11 +9,11 @@ import (
 
 type LayerDetailsCompoundLayout struct {
 	layer               *view.Layer
-	details             *view.Details
+	details             view.ImageDetails
 	constrainRealEstate bool
 }
 
-func NewLayerDetailsCompoundLayout(layer *view.Layer, details *view.Details) *LayerDetailsCompoundLayout {
+func NewLayerDetailsCompoundLayout(layer *view.Layer, details view.ImageDetails) *LayerDetailsCompoundLayout {
 	return &LayerDetailsCompoundLayout{
 		layer:   layer,
 		details: details,

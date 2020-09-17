@@ -37,6 +37,8 @@ func newApp(gui *gocui.Gui, analysis *image.AnalysisResult, cache filetree.Compa
 			return
 		}
 
+
+
 		// note: order matters when adding elements to the layout
 		lm := layout.NewManager()
 		lm.Add(controller.views.Status, layout.LocationFooter)

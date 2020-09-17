@@ -9,6 +9,7 @@ type Analyzer interface {
 }
 
 type AnalysisResult struct {
+	ImageName string
 	Layers            []*Layer
 	RefTrees          []*filetree.FileTree
 	Efficiency        float64
