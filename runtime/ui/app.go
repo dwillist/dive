@@ -1,10 +1,14 @@
 package ui
 
 import (
+	"fmt"
+	"github.com/spf13/viper"
 	"github.com/wagoodman/dive/dive/image"
 	"github.com/wagoodman/dive/runtime/ui/key"
 	"github.com/wagoodman/dive/runtime/ui/layout"
 	"github.com/wagoodman/dive/runtime/ui/layout/compound"
+	"github.com/wagoodman/dive/runtime/ui/view"
+	"github.com/wagoodman/dive/runtime/ui/viewmodel"
 	"sync"
 
 	"github.com/jroimartin/gocui"
@@ -26,37 +30,153 @@ var (
 	appSingleton *app
 )
 
+type detailsModel struct {
+	efficiency float64
+	inefficiencies filetree.EfficiencySlice
+	sizeBytes uint64
+}
+
+type diveModels struct {
+	filetree *viewmodel.FileTree
+	compareMode *viewmodel.LayerCompareMode
+	layerSelection *viewmodel.LayerSelection
+	layerSetState *viewmodel.LayerSetState
+	// TODO: move me to the models folder
+	details detailsModel
+}
+
+func initializeModels(gui *gocui.Gui, analysis *image.AnalysisResult, cache filetree.Comparer) (diveModels, error) {
+	trees := analysis.RefTrees
+	layers := analysis.Layers
+
+	// TODO: do we need to check this??
+	firstTree := analysis.RefTrees[0]
+	firstLayer := layers[0]
+
+	// fileTreeModel initialization
+	fileTreeModel, err := viewmodel.NewFileTreeViewModel(firstTree, trees, cache)
+	if err != nil {
+		return diveModels{}, err
+	}
+
+	// compareMode
+	var compareMode viewmodel.LayerCompareMode
+	switch mode := viper.GetBool("layer.show-aggregated-changes"); mode {
+	case true:
+		compareMode = viewmodel.CompareAllLayers
+	case false:
+		compareMode = viewmodel.CompareSingleLayer
+	default:
+		return diveModels{}, fmt.Errorf("unknown layer.show-aggregated-changes value: %v", mode)
+	}
+
+	layerSelection := viewmodel.LayerSelection{
+		Layer:           firstLayer,
+		BottomTreeStart: 0,
+		BottomTreeStop:  0,
+		TopTreeStart:    0,
+		TopTreeStop:     0,
+	}
+
+	layerSetState := viewmodel.NewLayerSetState(layers, compareMode)
+	details := detailsModel{
+		efficiency: analysis.Efficiency,
+		inefficiencies: analysis.Inefficiencies,
+		sizeBytes: analysis.SizeBytes,
+	}
+	return diveModels{
+		filetree: fileTreeModel,
+		compareMode: &compareMode,
+		layerSelection: &layerSelection,
+		layerSetState: layerSetState,
+		details: details,
+	}, nil
+}
+
+func initializeViews(gui * gocui.Gui, m diveModels) (result view.Views, err error) {
+	layerView, err := view.NewLayerView(gui, m.layerSetState)
+	if err != nil {
+		return result, err
+	}
+
+	fileTreeView, err := view.NewFileTreeView(gui, m.filetree)
+
+	statusView := view.NewStatusView(gui)
+	statusView.SetCurrentView(layerView)
+
+	filterView := view.NewFilterView(gui)
+
+	detailsView := view.NewDetailsView(gui, m.details.efficiency, m.details.inefficiencies, m.details.sizeBytes)
+
+	return view.Views{
+		Tree: fileTreeView,
+		Layer: layerView,
+		Status: statusView,
+		Filter: filterView,
+		Details: detailsView,
+	}, nil
+}
+
+func initializeController(g *gocui.Gui, views *view.Views) (*Controller, error) {
+	controller := &Controller{
+		gui:   g,
+		views: views,
+	}
+
+	controller.views.Layer.AddLayerChangeListener(controller.onLayerChange)
+
+	// update the status pane when a filetree option is changed by the user
+	controller.views.Tree.AddViewOptionChangeListener(controller.onFileTreeViewOptionChange)
+
+	// update the tree view while the user types into the filter view
+	controller.views.Filter.AddFilterEditListener(controller.onFilterEdit)
+
+	err := controller.onLayerChange(viewmodel.LayerSelection{
+		Layer:           controller.views.Layer.CurrentLayer(),
+		BottomTreeStart: 0,
+		BottomTreeStop:  0,
+		TopTreeStart:    0,
+		TopTreeStop:     0,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return controller, nil
+}
+
+// TODO: app should be built from the bottom up, this really makes components re-usable, and adheres to DIP
+// right now we have a top down initialization structure which is 'messy'
 func newApp(gui *gocui.Gui, analysis *image.AnalysisResult, cache filetree.Comparer) (*app, error) {
 	var err error
 	once.Do(func() {
-		var controller *Controller
 		var globalHelpKeys []*key.Binding
-
-		controller, err = NewCollection(gui, analysis, cache)
+		// create models
+		m, err := initializeModels(gui, analysis , cache )
 		if err != nil {
 			return
 		}
 
-		// note: order matters when adding elements to the layout
+		// create views
+		v, err := initializeViews(gui,m)
+		if err != nil {
+			return
+		}
+
+		controller, err := initializeController(gui, &v)
+
 		lm := layout.NewManager()
 		lm.Add(controller.views.Status, layout.LocationFooter)
 		lm.Add(controller.views.Filter, layout.LocationFooter)
 		lm.Add(compound.NewLayerDetailsCompoundLayout(controller.views.Layer, controller.views.Details), layout.LocationColumn)
 		lm.Add(controller.views.Tree, layout.LocationColumn)
 
-		// todo: access this more programmatically
 		if debug {
 			lm.Add(controller.views.Debug, layout.LocationColumn)
 		}
 		gui.Cursor = false
-		//g.Mouse = true
 		gui.SetManagerFunc(lm.Layout)
-
-		// var profileObj = profile.Start(profile.CPUProfile, profile.ProfilePath("."), profile.NoShutdownHook)
-		//
-		// onExit = func() {
-		// 	profileObj.Stop()
-		// }
 
 		appSingleton = &app{
 			gui:         gui,
@@ -95,7 +215,6 @@ func newApp(gui *gocui.Gui, analysis *image.AnalysisResult, cache filetree.Compa
 		if err != nil {
 			return
 		}
-
 	})
 
 	return appSingleton, err

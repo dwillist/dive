@@ -31,6 +31,26 @@ type FileTree struct {
 	requestedWidthRatio float64
 }
 
+// TODO: initialize using interfaces!!!
+func NewFileTreeView(gui *gocui.Gui, fileTreeModel *viewmodel.FileTree) (treeView *FileTree, err error) {
+	treeView = new(FileTree)
+	treeView.listeners = make([]ViewOptionChangeListener, 0)
+	treeView.vm = fileTreeModel
+
+	// populate main fields
+	treeView.name = "filetree"
+	treeView.gui = gui
+
+	requestedWidthRatio := viper.GetFloat64("filetree.pane-width")
+	if requestedWidthRatio >= 1 || requestedWidthRatio <= 0 {
+		logrus.Errorf("invalid config value: 'filetree.pane-width' should be 0 < value < 1, given '%v'", requestedWidthRatio)
+		requestedWidthRatio = 0.5
+	}
+	treeView.requestedWidthRatio = requestedWidthRatio
+
+	return treeView, err
+}
+
 // newFileTreeView creates a new view object attached the the global [gocui] screen object.
 func newFileTreeView(gui *gocui.Gui, tree *filetree.FileTree, refTrees []*filetree.FileTree, cache filetree.Comparer) (controller *FileTree, err error) {
 	controller = new(FileTree)

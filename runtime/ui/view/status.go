@@ -24,6 +24,18 @@ type Status struct {
 	helpKeys []*key.Binding
 }
 
+func NewStatusView(gui *gocui.Gui) (controller *Status) {
+	controller = new(Status)
+
+	// populate main fields
+	controller.name = "status"
+	controller.gui = gui
+	controller.helpKeys = make([]*key.Binding, 0)
+	controller.requestedHeight = 1
+
+	return controller
+}
+
 // newStatusView creates a new view object attached the the global [gocui] screen object.
 func newStatusView(gui *gocui.Gui) (controller *Status) {
 	controller = new(Status)

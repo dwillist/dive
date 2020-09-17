@@ -118,6 +118,9 @@ func (c *Controller) UpdateAndRender() error {
 
 // Update refreshes the state objects for future rendering.
 func (c *Controller) Update() error {
+	// TODO: this seems like a break down in concerns
+	// we really want to be updating a MODEL here,
+	// updating model should push data into views.
 	for _, controller := range c.views.All() {
 		err := controller.Update()
 		if err != nil {

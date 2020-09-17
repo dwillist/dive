@@ -15,6 +15,7 @@ type Views struct {
 	Debug   *Debug
 }
 
+
 func NewViews(g *gocui.Gui, analysis *image.AnalysisResult, cache filetree.Comparer) (*Views, error) {
 	Layer, err := newLayerView(g, analysis.Layers)
 	if err != nil {

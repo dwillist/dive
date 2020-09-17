@@ -28,6 +28,19 @@ type Details struct {
 	currentLayer *image.Layer
 }
 
+func NewDetailsView(gui *gocui.Gui, efficiency float64, inefficiencies filetree.EfficiencySlice, imageSize uint64) (controller *Details) {
+	controller = new(Details)
+
+	// populate main fields
+	controller.name = "details"
+	controller.gui = gui
+	controller.efficiency = efficiency
+	controller.inefficiencies = inefficiencies
+	controller.imageSize = imageSize
+
+	return controller
+}
+
 // newDetailsView creates a new view object attached the the global [gocui] screen object.
 func newDetailsView(gui *gocui.Gui, efficiency float64, inefficiencies filetree.EfficiencySlice, imageSize uint64) (controller *Details) {
 	controller = new(Details)

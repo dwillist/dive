@@ -26,6 +26,22 @@ type Layer struct {
 	helpKeys []*key.Binding
 }
 
+// TODO: swap out initialization to use interfacec!!!
+// TODO: remove un-needed param (also look for ways to remove mode entirely)
+func NewLayerView(gui *gocui.Gui, state *viewmodel.LayerSetState) (layerView *Layer, err error) {
+	layerView = new(Layer)
+
+	layerView.listeners = make([]LayerChangeListener, 0)
+
+	// populate main fields
+	layerView.name = "layer"
+	layerView.gui = gui
+
+	layerView.vm = state
+
+	return layerView, err
+}
+
 // newLayerView creates a new view object attached the the global [gocui] screen object.
 func newLayerView(gui *gocui.Gui, layers []*image.Layer) (controller *Layer, err error) {
 	controller = new(Layer)
