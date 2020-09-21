@@ -183,6 +183,8 @@ func (v *FileTree) Setup(view *gocui.View, header *gocui.View) error {
 	v.helpKeys = helpKeys
 
 	_, height := v.view.Size()
+
+	//TODO: this should be injected into setup.
 	v.vm.Setup(0, height)
 	_ = v.Update()
 	_ = v.Render()
@@ -190,6 +192,7 @@ func (v *FileTree) Setup(view *gocui.View, header *gocui.View) error {
 	return nil
 }
 
+// Required by Layout
 // IsVisible indicates if the file tree view pane is currently initialized
 func (v *FileTree) IsVisible() bool {
 	return v != nil

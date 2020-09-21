@@ -119,20 +119,20 @@ func initializeViews(gui * gocui.Gui, m diveModels) (result view.Views, err erro
 
 func initializeController(g *gocui.Gui, views *view.Views) (*Controller, error) {
 	controller := &Controller{
-		gui:   g,
-		views: views,
+		Gui:   g,
+		Views: views,
 	}
 
-	controller.views.Layer.AddLayerChangeListener(controller.onLayerChange)
+	controller.Views.Layer.AddLayerChangeListener(controller.OnLayerChange)
 
 	// update the status pane when a filetree option is changed by the user
-	controller.views.Tree.AddViewOptionChangeListener(controller.onFileTreeViewOptionChange)
+	controller.Views.Tree.AddViewOptionChangeListener(controller.OnFileTreeViewOptionChange)
 
 	// update the tree view while the user types into the filter view
-	controller.views.Filter.AddFilterEditListener(controller.onFilterEdit)
+	controller.Views.Filter.AddFilterEditListener(controller.OnFilterEdit)
 
-	err := controller.onLayerChange(viewmodel.LayerSelection{
-		Layer:           controller.views.Layer.CurrentLayer(),
+	err := controller.OnLayerChange(viewmodel.LayerSelection{
+		Layer:           controller.Views.Layer.CurrentLayer(),
 		BottomTreeStart: 0,
 		BottomTreeStop:  0,
 		TopTreeStart:    0,
@@ -167,13 +167,13 @@ func newApp(gui *gocui.Gui, analysis *image.AnalysisResult, cache filetree.Compa
 		controller, err := initializeController(gui, &v)
 
 		lm := layout.NewManager()
-		lm.Add(controller.views.Status, layout.LocationFooter)
-		lm.Add(controller.views.Filter, layout.LocationFooter)
-		lm.Add(compound.NewLayerDetailsCompoundLayout(controller.views.Layer, controller.views.Details), layout.LocationColumn)
-		lm.Add(controller.views.Tree, layout.LocationColumn)
+		lm.Add(controller.Views.Status, layout.LocationFooter)
+		lm.Add(controller.Views.Filter, layout.LocationFooter)
+		lm.Add(compound.NewLayerDetailsCompoundLayout(controller.Views.Layer, controller.Views.Details), layout.LocationColumn)
+		lm.Add(controller.Views.Tree, layout.LocationColumn)
 
 		if debug {
-			lm.Add(controller.views.Debug, layout.LocationColumn)
+			lm.Add(controller.Views.Debug, layout.LocationColumn)
 		}
 		gui.Cursor = false
 		gui.SetManagerFunc(lm.Layout)
@@ -198,7 +198,7 @@ func newApp(gui *gocui.Gui, analysis *image.AnalysisResult, cache filetree.Compa
 			{
 				ConfigKeys: []string{"keybinding.filter-files"},
 				OnAction:   controller.ToggleFilterView,
-				IsSelected: controller.views.Filter.IsVisible,
+				IsSelected: controller.Views.Filter.IsVisible,
 				Display:    "Filter",
 			},
 		}
@@ -208,7 +208,7 @@ func newApp(gui *gocui.Gui, analysis *image.AnalysisResult, cache filetree.Compa
 			return
 		}
 
-		controller.views.Status.AddHelpKeys(globalHelpKeys...)
+		controller.Views.Status.AddHelpKeys(globalHelpKeys...)
 
 		// perform the first update and render now that all resources have been loaded
 		err = controller.UpdateAndRender()

@@ -6,6 +6,7 @@ import (
 	"github.com/wagoodman/dive/dive/image"
 )
 
+// Swap this out to be an interface
 type Views struct {
 	Tree    *FileTree
 	Layer   *Layer
@@ -14,6 +15,15 @@ type Views struct {
 	Details *Details
 	Debug   *Debug
 }
+
+//type Views struct {
+//	Tree Renderer
+//	Layer   Renderer
+//	Status  Renderer
+//	Filter  Renderer
+//	Details Renderer
+//	Debug   Renderer
+//}
 
 
 func NewViews(g *gocui.Gui, analysis *image.AnalysisResult, cache filetree.Comparer) (*Views, error) {

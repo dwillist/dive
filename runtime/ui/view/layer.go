@@ -18,7 +18,7 @@ type Layer struct {
 	gui                   *gocui.Gui
 	view                  *gocui.View
 	header                *gocui.View
-	vm                    *viewmodel.LayerSetState
+	vm                    LayerSetState
 	constrainedRealEstate bool
 
 	listeners []LayerChangeListener
@@ -26,9 +26,24 @@ type Layer struct {
 	helpKeys []*key.Binding
 }
 
-// TODO: swap out initialization to use interfacec!!!
+type LayerSetState interface {
+	GetCompareMode() viewmodel.LayerCompareMode
+
+	GetLayerIndex() int
+
+	SetLayerIndex(index int)
+
+	GetLayers() []*image.Layer
+
+	SetCompareMode(mode viewmodel.LayerCompareMode)
+
+	// getCompareIndexes determines the layer boundaries to use for comparison (based on the current compare mode)
+	GetCompareIndexes() (bottomTreeStart, bottomTreeStop, topTreeStart, topTreeStop int)
+}
+
+// TODO: swap out initialization to use interface!!!
 // TODO: remove un-needed param (also look for ways to remove mode entirely)
-func NewLayerView(gui *gocui.Gui, state *viewmodel.LayerSetState) (layerView *Layer, err error) {
+func NewLayerView(gui *gocui.Gui, state LayerSetState) (layerView *Layer, err error) {
 	layerView = new(Layer)
 
 	layerView.listeners = make([]LayerChangeListener, 0)
@@ -114,13 +129,13 @@ func (v *Layer) Setup(view *gocui.View, header *gocui.View) error {
 		{
 			ConfigKeys: []string{"keybinding.compare-layer"},
 			OnAction:   func() error { return v.setCompareMode(viewmodel.CompareSingleLayer) },
-			IsSelected: func() bool { return v.vm.CompareMode == viewmodel.CompareSingleLayer },
+			IsSelected: func() bool { return v.vm.GetCompareMode() == viewmodel.CompareSingleLayer },
 			Display:    "Show layer changes",
 		},
 		{
 			ConfigKeys: []string{"keybinding.compare-all"},
 			OnAction:   func() error { return v.setCompareMode(viewmodel.CompareAllLayers) },
-			IsSelected: func() bool { return v.vm.CompareMode == viewmodel.CompareAllLayers },
+			IsSelected: func() bool { return v.vm.GetCompareMode() == viewmodel.CompareAllLayers },
 			Display:    "Show aggregated changes",
 		},
 		{
@@ -168,8 +183,9 @@ func (v *Layer) height() uint {
 	return uint(height - 1)
 }
 
+// TODO: can we delete this??
 func (v *Layer) CompareMode() viewmodel.LayerCompareMode {
-	return v.vm.CompareMode
+	return v.vm.GetCompareMode()
 }
 
 // IsVisible indicates if the layer view pane is currently initialized.
@@ -180,16 +196,16 @@ func (v *Layer) IsVisible() bool {
 // PageDown moves to next page putting the cursor on top
 func (v *Layer) PageDown() error {
 	step := int(v.height()) + 1
-	targetLayerIndex := v.vm.LayerIndex + step
+	targetLayerIndex := v.vm.GetLayerIndex() + step
 
-	if targetLayerIndex > len(v.vm.Layers) {
-		step -= targetLayerIndex - (len(v.vm.Layers) - 1)
+	if targetLayerIndex > len(v.vm.GetLayers()) {
+		step -= targetLayerIndex - (len(v.vm.GetLayers()) - 1)
 	}
 
 	if step > 0 {
 		err := CursorStep(v.gui, v.view, step)
 		if err == nil {
-			return v.SetCursor(v.vm.LayerIndex + step)
+			return v.SetCursor(v.vm.GetLayerIndex() + step)
 		}
 	}
 	return nil
@@ -198,7 +214,7 @@ func (v *Layer) PageDown() error {
 // PageUp moves to previous page putting the cursor on top
 func (v *Layer) PageUp() error {
 	step := int(v.height()) + 1
-	targetLayerIndex := v.vm.LayerIndex - step
+	targetLayerIndex := v.vm.GetLayerIndex() - step
 
 	if targetLayerIndex < 0 {
 		step += targetLayerIndex
@@ -207,7 +223,7 @@ func (v *Layer) PageUp() error {
 	if step > 0 {
 		err := CursorStep(v.gui, v.view, -step)
 		if err == nil {
-			return v.SetCursor(v.vm.LayerIndex - step)
+			return v.SetCursor(v.vm.GetLayerIndex() - step)
 		}
 	}
 	return nil
@@ -215,10 +231,10 @@ func (v *Layer) PageUp() error {
 
 // CursorDown moves the cursor down in the layer pane (selecting a higher layer).
 func (v *Layer) CursorDown() error {
-	if v.vm.LayerIndex < len(v.vm.Layers) {
+	if v.vm.GetLayerIndex() < len(v.vm.GetLayers()) {
 		err := CursorDown(v.gui, v.view)
 		if err == nil {
-			return v.SetCursor(v.vm.LayerIndex + 1)
+			return v.SetCursor(v.vm.GetLayerIndex() + 1)
 		}
 	}
 	return nil
@@ -226,10 +242,10 @@ func (v *Layer) CursorDown() error {
 
 // CursorUp moves the cursor up in the layer pane (selecting a lower layer).
 func (v *Layer) CursorUp() error {
-	if v.vm.LayerIndex > 0 {
+	if v.vm.GetLayerIndex() > 0 {
 		err := CursorUp(v.gui, v.view)
 		if err == nil {
-			return v.SetCursor(v.vm.LayerIndex - 1)
+			return v.SetCursor(v.vm.GetLayerIndex() - 1)
 		}
 	}
 	return nil
@@ -237,7 +253,7 @@ func (v *Layer) CursorUp() error {
 
 // SetCursor resets the cursor and orients the file tree view based on the given layer index.
 func (v *Layer) SetCursor(layer int) error {
-	v.vm.LayerIndex = layer
+	v.vm.SetLayerIndex(layer)
 	err := v.notifyLayerChangeListeners()
 	if err != nil {
 		return err
@@ -248,12 +264,12 @@ func (v *Layer) SetCursor(layer int) error {
 
 // CurrentLayer returns the Layer object currently selected.
 func (v *Layer) CurrentLayer() *image.Layer {
-	return v.vm.Layers[v.vm.LayerIndex]
+	return v.vm.GetLayers()[v.vm.GetLayerIndex()]
 }
 
 // setCompareMode switches the layer comparison between a single-layer comparison to an aggregated comparison.
 func (v *Layer) setCompareMode(compareMode viewmodel.LayerCompareMode) error {
-	v.vm.CompareMode = compareMode
+	v.vm.SetCompareMode(compareMode)
 	return v.notifyLayerChangeListeners()
 }
 
@@ -333,7 +349,7 @@ func (v *Layer) Render() error {
 
 		// update contents
 		v.view.Clear()
-		for idx, layer := range v.vm.Layers {
+		for idx, layer := range v.vm.GetLayers() {
 
 			var layerStr string
 			if v.constrainedRealEstate {
@@ -344,7 +360,7 @@ func (v *Layer) Render() error {
 
 			compareBar := v.renderCompareBar(idx)
 
-			if idx == v.vm.LayerIndex {
+			if idx == v.vm.GetLayerIndex() {
 				_, err = fmt.Fprintln(v.view, compareBar+" "+format.Selected(layerStr))
 			} else {
 				_, err = fmt.Fprintln(v.view, compareBar+" "+layerStr)
@@ -362,7 +378,7 @@ func (v *Layer) Render() error {
 }
 
 func (v *Layer) LayerCount() int {
-	return len(v.vm.Layers)
+	return len(v.vm.GetLayers())
 }
 
 // KeyHelp indicates all the possible actions a user can take while the current pane is selected.

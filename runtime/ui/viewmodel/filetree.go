@@ -88,6 +88,7 @@ func (vm *FileTree) bufferIndexUpperBound() int {
 	return vm.bufferIndexLowerBound + vm.height()
 }
 
+// TODO: delete unused.
 // IsVisible indicates if the file tree view pane is currently initialized
 func (vm *FileTree) IsVisible() bool {
 	return vm != nil
